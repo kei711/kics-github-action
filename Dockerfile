@@ -1,6 +1,9 @@
-FROM checkmarx/kics:gh-action
+FROM alpine:latest
+WORKDIR /app
 
-COPY ./entrypoint.sh /entrypoint.sh
+RUN apk add --update --no-cache docker
+
+COPY ./action-entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
 
