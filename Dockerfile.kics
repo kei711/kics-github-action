@@ -1,0 +1,10 @@
+ARG kics_docker_tag
+FROM checkmarx/kics:${kics_docker_tag}
+
+COPY ./entrypoint-kics.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+COPY ./ /app
+
+ENTRYPOINT ["/entrypoint.sh"]

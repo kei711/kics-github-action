@@ -1,89 +1,54 @@
 #!/bin/ash
-DATETIME="$(date '+%H:%M')"
 
-####################################
-# Check if Scan Path is Present    #
-####################################
-if [ -z "$INPUT_PATH" ]; then
-    echo "${DATETIME} - ERR input path can't be empty"
-    exit 1
-else
-    INPUT_PARAM="-p $INPUT_PATH"
-fi
+cd /kics-action
+docker build -f Dockerfile.kics -t kics-action \
+  --build-arg kics_docker_tag="$INPUT_KICS_DOCKER_TAG" .
 
-###########################
-# Set KICS Flags Values   #
-###########################
-[[ ! -z "$INPUT_PAYLOAD_PATH" ]] && PAYLOAD_PATH_PARAM="-d $INPUT_PAYLOAD_PATH"
-[[ ! -z "$INPUT_CONFIG_PATH" ]] && CONFIG_PATH_PARAM="--config $INPUT_CONFIG_PATH"
-[[ ! -z "$INPUT_EXCLUDE_PATHS" ]] && EXCLUDE_PATHS_PARAM="-e $INPUT_EXCLUDE_PATHS"
-[[ ! -z "$INPUT_EXCLUDE_RESULTS" ]] && EXCLUDE_RESULTS_PARAM="-x $INPUT_EXCLUDE_RESULTS"
-[[ ! -z "$INPUT_EXCLUDE_QUERIES" ]] && EXCLUDE_QUERIES_PARAM="--exclude-queries $INPUT_EXCLUDE_QUERIES"
-[[ ! -z "$INPUT_EXCLUDE_CATEGORIES" ]] && EXCLUDE_CATEGORIES_PARAM="--exclude-categories $INPUT_EXCLUDE_CATEGORIES"
-[[ ! -z "$INPUT_PLATFORM_TYPE" ]] && PLATFORM_TYPE_PARAM="--type $INPUT_PLATFORM_TYPE"
-[[ ! -z "$INPUT_FAIL_ON" ]] && FAIL_ON_PARAM="--fail-on $INPUT_FAIL_ON"
-[[ ! -z "$INPUT_TIMEOUT" ]] && TIMEOUT_PARAM="--timeout $INPUT_TIMEOUT"
-[[ ! -z "$INPUT_PROFILING" ]] && PROFILING_PARAM="--profiling $INPUT_PROFILING"
-[[ ! -z "$INPUT_BOM" ]] && BOM_PARAM="-m $INPUT_PROFILING"
-[[ ! -z "$INPUT_INCLUDE_QUERIES" ]] && INCLUDE_QUERIES_PARAM="-i $INPUT_PROFILING"
-[[ ! -z "$INPUT_DISABLE_SECRETS" ]] && DISABLE_SECRETS_PARAM="--disable-secrets"
-[[ ! -z "$INPUT_DISABLE_FULL_DESCRIPTIONS" ]] && DISABLE_FULL_DESCRIPTIONS_PARAM="--disable-full-descriptions"
-[[ ! -z "$INPUT_LIBRARIES_PATH" ]] && LIBRARIES_PATH_PARAM="-b $INPUT_LIBRARIES_PATH"
-[[ ! -z "$INPUT_SECRETS_REGEXES_PATH" ]] && SECRETS_REGEXES_PATH_PARAM="-r $INPUT_SECRETS_REGEXES_PATH"
-[[ ! -z "$INPUT_IGNORE_ON_EXIT" ]] && IGNORE_ON_EXIT_PARAM="--ignore-on-exit $INPUT_IGNORE_ON_EXIT"
+# Since we are running Docker inside a Docker container in GitHub Actions,
+# we need to specify the host machine folder path to the volume mount section.
+REPOSITORY_NAME=$(echo $GITHUB_REPOSITORY | sed -e 's;[^/]*/;;g')
+GITHUB_RUNNER_REPOSITORY_WORKSPACE="$RUNNER_WORKSPACE/$REPOSITORY_NAME"
+docker run \
+  -v "$GITHUB_RUNNER_REPOSITORY_WORKSPACE":"$GITHUB_WORKSPACE" \
+  --env GITHUB_WORKSPACE \
+  --env GITHUB_REPOSITORY \
+  --env GITHUB_ACTION \
+  --env GITHUB_ACTOR \
+  --env GITHUB_API_URL \
+  --env GITHUB_EVENT_NAME \
+  --env GITHUB_EVENT_PATH \
+  --env GITHUB_GRAPHQL_URL \
+  --env GITHUB_JOB \
+  --env GITHUB_REF \
+  --env GITHUB_RUN_ID \
+  --env GITHUB_RUN_NUMBER \
+  --env GITHUB_SERVER_URL \
+  --env GITHUB_SHA \
+  --env GITHUB_WORKFLOW \
+  --env INPUT_TOKEN \
+  --env INPUT_ENABLE_COMMENTS \
+  --env INPUT_PATH \
+  --env INPUT_IGNORE_ON_EXIT \
+  --env INPUT_FAIL_ON \
+  --env INPUT_TIMEOUT \
+  --env INPUT_PROFILING \
+  --env INPUT_CONFIG_PATH \
+  --env INPUT_PLATFORM_TYPE \
+  --env INPUT_EXCLUDE_PATHS \
+  --env INPUT_EXCLUDE_QUERIES \
+  --env INPUT_EXCLUDE_CATEGORIES \
+  --env INPUT_EXCLUDE_RESULTS \
+  --env INPUT_OUTPUT_FORMATS \
+  --env INPUT_OUTPUT_PATH \
+  --env INPUT_PAYLOAD_PATH \
+  --env INPUT_QUERIES \
+  --env INPUT_SECRETS_REGEXES_PATH \
+  --env INPUT_LIBRARIES_PATH \
+  --env INPUT_DISABLE_FULL_DESCRIPTIONS \
+  --env INPUT_DISABLE_SECRETS \
+  --env INPUT_TYPE \
+  --env INPUT_VERBOSE \
+  --env INPUT_INCLUDE_QUERIES \
+  --env INPUT_BOM \
+  kics-action
 
-[[ ! -z "$INPUT_VERBOSE" ]] && VERBOSE_PARAM="-v"
-
-#######################
-# Set Queries Path    #
-#######################
-if [ ! -z "$INPUT_QUERIES" ]; then
-    QUERIES_PARAM="-q $INPUT_QUERIES"
-else
-    QUERIES_PARAM="-q /app/bin/assets/queries"
-fi
-
-###############################################
-# Add JSON as Report Format if not present    #
-###############################################
-if [ -n "$INPUT_OUTPUT_FORMATS" ]; then
-    if [[ $INPUT_OUTPUT_FORMATS == *"json"* ]]; then
-        OUTPUT_FORMATS_PARAM="--report-formats $INPUT_OUTPUT_FORMATS"
-    else
-        OUTPUT_FORMATS_PARAM="--report-formats $INPUT_OUTPUT_FORMATS,json"
-    fi
-else
-    OUTPUT_FORMATS_PARAM="--report-formats json"
-fi
-
-############################
-# Check for Output Path    #
-############################
-
-CP_PATH="./results.json"
-if [ ! -z "$INPUT_OUTPUT_PATH" ]; then
-    OUTPUT_PATH_PARAM="-o $INPUT_OUTPUT_PATH"
-    CP_PATH=$INPUT_OUTPUT_PATH
-else
-    OUTPUT_PATH_PARAM="-o ./"
-fi
-
-####################
-# Run KICS Scan    #
-####################
-cd $GITHUB_WORKSPACE
-echo "${DATETIME} - INF : about to scan directory $INPUT_PATH"
-echo "${DATETIME} - INF : kics command kics $INPUT_PARAM $OUTPUT_PATH_PARAM $OUTPUT_FORMATS_PARAM $PLATFORM_TYPE_PARAM $PAYLOAD_PATH_PARAM $CONFIG_PATH_PARAM $EXCLUDE_PATHS_PARAM $EXCLUDE_CATEGORIES_PARAM $EXCLUDE_RESULTS_PARAM $EXCLUDE_QUERIES_PARAM $QUERIES_PARAM $VERBOSE_PARAM $IGNORE_ON_EXIT_PARAM $FAIL_ON_PARAM $TIMEOUT_PARAM $PROFILING_PARAM $BOM_PARAM $INCLUDE_QUERIES_PARAM $DISABLE_SECRETS_PARAM $DISABLE_FULL_DESCRIPTIONS_PARAM $LIBRARIES_PATH_PARAM $SECRETS_REGEXES_PATH_PARAM"
-/app/bin/kics scan --no-progress $INPUT_PARAM $OUTPUT_PATH_PARAM $OUTPUT_FORMATS_PARAM $PLATFORM_TYPE_PARAM $PAYLOAD_PATH_PARAM $CONFIG_PATH_PARAM $EXCLUDE_PATHS_PARAM $EXCLUDE_CATEGORIES_PARAM $EXCLUDE_RESULTS_PARAM $EXCLUDE_QUERIES_PARAM $QUERIES_PARAM $VERBOSE_PARAM $IGNORE_ON_EXIT_PARAM $FAIL_ON_PARAM $TIMEOUT_PARAM $PROFILING_PARAM $BOM_PARAM $INCLUDE_QUERIES_PARAM $DISABLE_SECRETS_PARAM $DISABLE_FULL_DESCRIPTIONS_PARAM $LIBRARIES_PATH_PARAM $SECRETS_REGEXES_PATH_PARAM
-
-export KICS_EXIT_CODE=$?
-
-cp -r "${CP_PATH}" "/app/"
-
-cd /app
-
-# install and run nodejs
-apk add --update nodejs npm
-npm ci
-npm run build --if-present
-node dist/index.js

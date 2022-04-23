@@ -1,9 +1,11 @@
-FROM checkmarx/kics:gh-action
+FROM alpine:latest
+
+RUN apk add --update --no-cache docker
 
 COPY ./entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
 
-COPY ./ /app
+COPY . /kics-action
 
 ENTRYPOINT ["/entrypoint.sh"]
